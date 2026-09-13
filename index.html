@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Duo Arcade — 2 Player Games</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080b16;
+    --panel: #121830;
+    --panel2: #1a2242;
+    --line: #26305a;
+    --text: #e9edff;
+    --muted: #8b95c0;
+    --p1: #ff5c8a;
+    --p2: #35d0ff;
+    --accent: #7c5cff;
+  }
+
+  html, body { min-height: 100%; }
+
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(1100px 700px at 15% -10%, #1d2255 0%, transparent 60%),
+      radial-gradient(900px 650px at 105% 0%, #0c2c47 0%, transparent 55%),
+      var(--bg);
+    background-attachment: fixed;
+    padding-bottom: 70px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- TOP BAR ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    background: rgba(10, 14, 30, 0.82);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand {
+    font-weight: 800; font-size: 1.15rem; letter-spacing: .3px;
+    display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(90deg, var(--p1), var(--accent), var(--p2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    white-space: nowrap;
+  }
+  .brand .logo { -webkit-text-fill-color: initial; }
+
+  .players {
+    display: flex; align-items: center; gap: 10px;
+    margin-left: auto;
+  }
+  .pl {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px 10px;
+  }
+  .pl.p1 { border-color: rgba(255,92,138,.45); box-shadow: 0 0 0 1px rgba(255,92,138,.08) inset; }
+  .pl.p2 { border-color: rgba(53,208,255,.45); box-shadow: 0 0 0 1px rgba(53,208,255,.08) inset; }
+  .pl input {
+    background: transparent; border: 0; outline: 0;
+    color: inherit; font: inherit; font-weight: 700;
+    width: 84px; min-width: 0;
+  }
+  .pl.p1 input { color: var(--p1); }
+  .pl.p2 input { color: var(--p2); }
+  .pl .score {
+    min-width: 26px; text-align: center;
+    font-weight: 800; font-size: .95rem;
+    background: rgba(255,255,255,.07);
+    border-radius: 8px; padding: 2px 7px;
+  }
+  .vs { font-size: .7rem; font-weight: 800; color: var(--muted); letter-spacing: 1px; }
+
+  /* ---------- BUTTONS ---------- */
+  .btn {
+    font: inherit; font-weight: 700; cursor: pointer;
+    border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel2); color: var(--text);
+    padding: 8px 14px;
+    transition: transform .12s ease, background .2s, border-color .2s;
+  }
+  .btn:hover { background: #222c54; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn.ghost { background: transparent; }
+  .btn.ghost:hover { background: rgba(255,255,255,.06); }
+  .btn.small { padding: 6px 10px; font-size: .82rem; }
+
+  /* ---------- LOBBY ---------- */
+  .lobby { max-width: 1000px; margin: 0 auto; padding: 28px 20px; }
+  .lobby-title {
+    font-size: 1.5rem; margin-bottom: 6px;
+    background: linear-gradient(90deg, #fff, #9fb0ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .lobby-sub { color: var(--muted); font-size: .92rem; margin-bottom: 22px; }
+
+  .lobby-grid {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  }
+  .game-card {
+    position: relative;
+    text-align: left; font: inherit; color: inherit; cursor: pointer;
+    background: linear-gradient(160deg, var(--panel2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 20px 18px 46px;
+    overflow: hidden;
+    transition: transform .18s ease, border-color .2s, box-shadow .25s;
+  }
+  .game-card::after {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(300px 120px at 50% 0%, rgba(124,92,255,.28), transparent 70%);
+    opacity: 0; transition: opacity .25s;
+    pointer-events: none;
+  }
+  .game-card:hover { transform: translateY(-4px); border-color: #3b4780; box-shadow: 0 14px 30px rgba(0,0,0,.45); }
+  .game-card:hover::after { opacity: 1; }
+  .game-icon { font-size: 2rem; margin-bottom: 10px; }
+  .game-name { font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; }
+  .game-desc { color: var(--muted); font-size: .84rem; line-height: 1.45; }
+  .game-tag {
+    position: absolute; left: 18px; bottom: 16px;
+    font-size: .68rem; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+    color: #b3a6ff;
+    background: rgba(124,92,255,.14);
+    border: 1px solid rgba(124,92,255,.35);
+    border-radius: 999px; padding: 3px 9px;
+  }
+
+  /* ---------- GAME SHELL ---------- */
+  .game-shell {
+    max-width: 760px; margin: 0 auto; padding: 20px;
+    display: flex; flex-direction: column; gap: 18px; align-items: center;
+  }
+  .game-bar {
+    width: 100%;
+    display: flex; align-items: center; gap: 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 14px;
+  }
+  .status { flex: 1; text-align: center; font-weight: 700; font-size: .95rem; }
+  .status .pname { font-weight: 800; }
+  .status .pname.p1, .p1text { color: var(--p1); }
+  .status .pname.p2, .p2text { color: var(--p2); }
+  .status b { color: #fff; }
+
+  .board {
+    width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  .hint { color: var(--muted); font-size: .82rem; text-align: center; }
+
+  /* ---------- TIC TAC TOE ---------- */
+  .ttt-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: min(360px, 88vw);
+  }
+  .ttt-cell {
+    aspect-ratio: 1;
+    font-family: inherit;
+    font-size: clamp(2rem, 11vw, 3.2rem);
+    font-weight: 800;
+    color: #fff;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    cursor: pointer;
+    display: grid; place-items: center;
+    transition: background .18s, transform .1s, border-color .2s, box-shadow .2s;
+  }
+  .ttt-cell:hover:empty { background: var(--panel2); transform: translateY(-2px); }
+  .ttt-cell.x { color: var(--p1); text-shadow: 0 0 18px rgba(255,92,138,.6); }
+  .ttt-cell.o { color: var(--p2); text-shadow: 0 0 18px rgba(53,208,255,.6); }
+  .ttt-cell.win {
+    border-color: #ffd166;
+    background: rgba(255, 209, 102, .12);
+    box-shadow: 0 0 22px rgba(255,209,102,.35);
+  }
+
+  /* ---------- CONNECT FOUR ---------- */
+  .c4-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 7px;
+    width: min(480px, 92vw);
+    padding: 12px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, #131a36, #0c1226);
+    border: 1px solid var(--line);
+    box-shadow: 0 18px 40px rgba(0,0,0,.5);
+  }
+  .c4-cell {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #070b18;
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.85);
+    cursor: pointer;
+    transition: background .2s, box-shadow .2s;
+  }
+  .c4-cell.p1 { background: radial-gradient(circle at 35% 30%, #ff9dbb, var(--p1)); box-shadow: 0 0 14px rgba(255,92,138,.55); animation: pop .22s ease; }
+  .c4-cell.p2 { background: radial-gradient(circle at 35% 30%, #9ee9ff, var(--p2)); box-shadow: 0 0 14px rgba(53,208,255,.55); animation: pop .22s ease; }
+  .c4-cell.win { outline: 3px solid #ffd166; outline-offset: -3px; }
+  @keyframes pop { from { transform: scale(.6); opacity: .4; } to { transform: scale(1); opacity: 1; } }
+
+  /* ---------- DOTS & BOXES ---------- */
+  .dots-svg { width: min(470px, 92vw); height: auto; touch-action: manipulation; }
+  .dbox { fill: rgba(255,255,255,.02); transition: fill .25s; }
+  .dbox.p1 { fill: rgba(255,92,138,.17); }
+  .dbox.p2 { fill: rgba(53,208,255,.17); }
+  .dline { stroke: #222b52; stroke-width: 5; stroke-linecap: round; transition: stroke .18s, stroke-width .18s; }
+  .dline.p1 { stroke: var(--p1); stroke-width: 7; filter: drop-shadow(0 0 5px rgba(255,92,138,.65)); }
+  .dline.p2 { stroke: var(--p2); stroke-width: 7; filter: drop-shadow(0 0 5px rgba(53,208,255,.65)); }
+  .dhit { stroke: transparent; stroke-width: 20; pointer-events: stroke; cursor: pointer; }
+  .ddot { fill: #5a6aa8; pointer-events: none; }
+  .dbox-txt {
+    font-size: 18px; font-weight: 800; text-anchor: middle;
+    dominant-baseline: middle; opacity: 0; transition: opacity .25s;
+    pointer-events: none;
+  }
+  .dbox-txt.p1 { fill: var(--p1); opacity: .85; }
+  .dbox-txt.p2 { fill: var(--p2); opacity: .85; }
+
+  /* ---------- MEMORY ---------- */
+  .mem-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    width: min(430px, 90vw);
+  }
+  .mem-card {
+    aspect-ratio: 1;
+    perspective: 700px;
+    background: none; border: 0; padding: 0; cursor: pointer;
+  }
+  .mem-inner {
+    position: relative; width: 100%; height: 100%;
+    transition: transform .38s cubic-bezier(.4,.2,.2,1);
+    transform-style: preserve-3d;
+  }
+  .mem-card.flipped .mem-inner,
+  .mem-card.matched .mem-inner { transform: rotateY(180deg); }
+  .mem-face {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    border-radius: 14px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    font-size: clamp(1.4rem, 7vw, 2.1rem);
+  }
+  .mem-back {
+    background: linear-gradient(150deg, #2a3370, #1a2145);
+    border: 1px solid #3a4685;
+    color: #8f9ddb; font-size: 1.2rem; font-weight: 800;
+  }
+  .mem-card:hover .mem-back { border-color: #5b6ac0; }
+  .mem-front {
+    transform: rotateY(180deg);
+    background: linear-gradient(150deg, #1d2748, #141a33);
+    border: 1px solid var(--line);
+  }
+  .mem-card.matched .mem-front {
+    border-color: #ffd166;
+    box-shadow: 0 0 16px rgba(255,209,102,.3);
+  }
+
+  /* ---------- NIM ---------- */
+  .nim { display: flex; flex-direction: column; gap: 14px; width: min(520px, 92vw); }
+  .nim-row {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .nim-label { font-size: .75rem; font-weight: 800; color: var(--muted); letter-spacing: .8px; text-transform: uppercase; width: 54px; flex: none; }
+  .nim-tokens { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .nim-token {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 0; cursor: pointer;
+    background: radial-gradient(circle at 35% 30%, #ffe9a8, #f0b429);
+    box-shadow: 0 3px 8px rgba(240,180,41,.35), inset 0 -3px 5px rgba(0,0,0,.25);
+    transition: transform .12s, box-shadow .2s, filter .2s;
+  }
+  .nim-token:hover { transform: translateY(-4px) scale(1.08); box-shadow: 0 8px 16px rgba(240,180,41,.5); }
+  .nim-empty { color: #3d4670; font-size: .8rem; font-style: italic; }
+
+  @media (max-width: 620px) {
+    .topbar { gap: 10px; padding: 10px 12px; }
+    .brand { font-size: 1rem; }
+    .pl input { width: 62px; font-size: .85rem; }
+    .game-bar { flex-wrap: wrap; }
+    .status { order: 3; flex-basis: 100%; }
+    .nim-row { padding: 10px; gap: 10px; }
+    .nim-token { width: 25px; height: 25px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="logo">🎮</span> Duo Arcade</div>
+  <div class="players">
+    <div class="pl p1">
+      <input id="n1" value="Player 1" maxlength="12" spellcheck="false" autocomplete="off" />
+      <span class="score" id="s1">0</span>
+    </div>
+    <span class="vs">VS</span>
+    <div class="pl p2">
+      <input id="n2" value="Player 2" maxlength="12" spellcheck="false" autocomplete="off" />
+      <span class="score" id="s2">0</span>
+    </div>
+  </div>
+  <button class="btn ghost small" id="resetScores">Reset Scores</button>
+</header>
+
+<main id="app"></main>
+
+<script>
+/* =========================================================
+   CORE HELPERS
+   ========================================================= */
+const NS = 'http://www.w3.org/2000/svg';
+const app = document.getElementById('app');
+
+const state = {
+  names:  { 1: 'Player 1', 2: 'Player 2' },
+  scores: { 1: 0, 2: 0 },
+  cleanup: null,
+  currentGame: null
+};
+
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  props = props || {};
+  for (const k in props) {
+    const v = props[k];
+    if (v === null || v === undefined || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'html') el.innerHTML = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+
+function svgEl(tag, attrs) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+}
+
+function nameHTML(p) {
+  return `<span class="pname p${p}">${escapeHtml(state.names[p])}</span>`;
+}
+
+function updateScoreboard() {
+  document.getElementById('s1').textContent = state.scores[1];
+  document.getElementById('s2').textContent = state.scores[2];
+}
+
+document.getElementById('n1').addEventListener('input', e => {
+  state.names[1] = e.target.value.trim() || 'Player 1';
+});
+document.getElementById('n2').addEventListener('input', e => {
+  state.names[2] = e.target.value.trim() || 'Player 2';
+});
+document.getElementById('resetScores').addEventListener('click', () => {
+  state.scores[1] = 0;
+  state.scores[2] = 0;
+  updateScoreboard();
+});
+
+/* =========================================================
+   GAME DEFINITIONS
+   ========================================================= */
+const GAMES = {};
+
+/* ---------------------------------------------------------
+   1. TIC TAC TOE
+   --------------------------------------------------------- */
+GAMES.tictactoe = {
+  name: 'Tic Tac Toe',
+  icon: '❌',
+  tag: 'Classic',
+  desc: 'Line up three of your marks in a row, column or diagonal.',
+  mount(root, api) {
+    const LINES = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+    let board, cur, over;
+    const grid = h('div', { class: 'ttt-grid' });
+    const cells = [];
+
+    for (let i = 0; i < 9; i++) {
+      const c = h('button', { class: 'ttt-cell', onclick: () => play(i) });
+      cells.push(c);
+      grid.append(c);
+    }
+    root.append(grid);
+
+    function reset() {
+      board = Array(9).fill(0);
+      cur = 1;
+      over = false;
+      cells.forEach(c => {
+        c.textContent = '';
+        c.className = 'ttt-cell';
+      });
+      api.setStatus(`${nameHTML(cur)} starts — your move!`);
+    }
+
+    function play(i) {
+      if (over || board[i]) return;
+      board[i] = cur;
+      cells[i].textContent = cur === 1 ? '✕' : '○';
+      cells[i].classList.add(cur === 1 ? 'x' : 'o');
+
+      const win = LINES.find(([a, b, c]) => board[a] && board[a] === board[b] && board[b] === board[c]);
+
+      if (win) {
+        over = true;
+        win.forEach(i => cells[i].classList.add('win'));
+        api.win(cur);
+        api.setStatus(`${nameHTML(cur)} wins! 🎉`);
+        return;
+      }
+      if (board.every(v => v)) {
+        over = true;
+        api.setStatus(`It's a draw! 🤝`);
+        return;
+      }
+      cur = 3 - cur;
+      api.setStatus(`${nameHTML(cur)}'s turn`);
+    }
+
+    api.onReset(reset);
+    reset();
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------
+   2. CONNECT FOUR
+   --------------------------------------------------------- */
+GAMES.connect4 = {
+  name: 'Connect Four',
+  icon: '🔴',
+  tag: 'Strategy',
+  desc: 'Drop discs into columns. First to line up four in any direction wins.',
+  mount(root, api) {
+    const R = 6, C = 7;
+    let board, cur, over;
+    const grid = h('div', { class: 'c4-grid' });
+    const cells = [];
+
+    for (let r = 0; r < R; r++) {
+      for (let c = 0; c < C; c++) {
+        const cell = h('div', { class: 'c4-cell', 'data-col': c });
+        cells.push(cell);
+        grid.append(cell);
+      }
+    }
+    grid.addEventListener('click', e => {
+      const cell = e.target.closest('.c4-cell');
+      if (cell) drop(Number(cell.dataset.col));
+    });
+    root.append(grid);
+    root.append(h('div', { class: 'hint', text: 'Click a column to drop your disc.' }));
+
+    function reset() {
+      board = Array.from({ length: R }, () => Array(C).fill(0));
+      cur = 1;
+      over = false;
+      cells.forEach(c => c.className = 'c4-cell');
+      api.setStatus(`${nameHTML(cur)} starts — pick a column!`);
+    }
+
+    function drop(c) {
+      if (over) return;
+      let row = -1;
+      for (let r = R - 1; r >= 0; r--) {
+        if (!board[r][c]) { row = r; break; }
+      }
+      if (row === -1) return;
+
+      board[row][c] = cur;
+      cells[row * C + c].classList.add(cur === 1 ? 'p1' : 'p2');
+
+      const streak = findWin(row, c);
+      if (streak) {
+        over = true;
+        streak.forEach(([r, cc]) => cells[r * C + cc].classList.add('win'));
+        api.win(cur);
+        api.setStatus(`${nameHTML(cur)} connects four and wins! 🎉`);
+        return;
+      }
+      if (board[0].every(v => v)) {
+        over = true;
+        api.setStatus(`It's a draw! 🤝`);
+        return;
+      }
+      cur = 3 - cur;
+      api.setStatus(`${nameHTML(cur)}'s turn`);
+    }
+
+    function findWin(r, c) {
+      const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+      for (const [dr, dc] of dirs) {
+        const line = [[r, c]];
+        for (const sign of [1, -1]) {
+          let rr = r + dr * sign, cc = c + dc * sign;
+          while (rr >= 0 && rr < R && cc >= 0 && cc < C && board[rr][cc] === cur) {
+            line.push([rr, cc]);
+            rr += dr * sign;
+            cc += dc * sign;
+          }
+        }
+        if (line.length >= 4) return line;
+      }
+      return null;
+    }
+
+    api.onReset(reset);
+    reset();
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------
+   3. DOTS & BOXES
+   --------------------------------------------------------- */
+GAMES.dots = {
+  name: 'Dots & Boxes',
+  icon: '🔷',
+  tag: 'Strategy',
+  desc: 'Draw lines between dots. Complete a box to claim it — and play again.',
+  mount(root, api) {
+    const N = 5;            // boxes per side
+    const D = N + 1;        // dots per side
+    const CELL = 64;
+    const PAD = 26;
+    const SZ = N * CELL + PAD * 2;
+
+    let hEdge, vEdge, owner, hLine, vLine, boxEls, boxTxt;
+    let cur, over, claimed;
+    const score = { 1: 0, 2: 0 };
+
+    const svg = svgEl('svg', { viewBox: `0 0 ${SZ} ${SZ}`, class: 'dots-svg' });
+    root.append(svg);
+
+    buildStructure();
+    svg.addEventListener('click', e => {
+      const t = e.target.closest('[data-edge]');
+      if (!t) return;
+      const [type, r, c] = t.dataset.edge.split('-');
+      play(type, Number(r), Number(c));
+    });
+
+    function buildStructure() {
+      boxEls = Array.from({ length: N }, () => Array(N));
+      boxTxt = Array.from({ length: N }, () => Array(N));
+      hLine  = Array.from({ length: D }, () => Array(N));
+      vLine  = Array.from({ length: N }, () => Array(D));
+
+      // Boxes
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const rect = svgEl('rect', {
+            class: 'dbox',
+            x: PAD + c * CELL + 3,
+            y: PAD + r * CELL + 3,
+            width: CELL - 6,
+            height: CELL - 6,
+            rx: 8
+          });
+          svg.append(rect);
+          boxEls[r][c] = rect;
+
+          const txt = svgEl('text', {
+            class: 'dbox-txt',
+            x: PAD + c * CELL + CELL / 2,
+            y: PAD + r * CELL + CELL / 2
+          });
+          svg.append(txt);
+          boxTxt[r][c] = txt;
+        }
+      }
+
+      // Visible lines
+      for (let r = 0; r < D; r++) {
+        for (let c = 0; c < N; c++) {
+          const x1 = PAD + c * CELL, y1 = PAD + r * CELL, x2 = x1 + CELL;
+          const l = svgEl('line', { class: 'dline', x1, y1, x2, y2: y1 });
+          svg.append(l);
+          hLine[r][c] = l;
+        }
+      }
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < D; c++) {
+          const x1 = PAD + c * CELL, y1 = PAD + r * CELL, y2 = y1 + CELL;
+          const l = svgEl('line', { class: 'dline', x1, y1, x2: x1, y2 });
+          svg.append(l);
+          vLine[r][c] = l;
+        }
+      }
+
+      // Dots
+      for (let r = 0; r < D; r++) {
+        for (let c = 0; c < D; c++) {
+          svg.append(svgEl('circle', {
+            class: 'ddot', cx: PAD + c * CELL, cy: PAD + r * CELL, r: 5
+          }));
+        }
+      }
+
+      // Invisible hit areas (on top)
+      for (let r = 0; r < D; r++) {
+        for (let c = 0; c < N; c++) {
+          const x1 = PAD + c * CELL, y1 = PAD + r * CELL, x2 = x1 + CELL;
+          svg.append(svgEl('line', {
+            class: 'dhit', 'data-edge': `h-${r}-${c}`, x1, y1, x2, y2: y1
+          }));
+        }
+      }
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < D; c++) {
+          const x1 = PAD + c * CELL, y1 = PAD + r * CELL, y2 = y1 + CELL;
+          svg.append(svgEl('line', {
+            class: 'dhit', 'data-edge': `v-${r}-${c}`, x1, y1, x2: x1, y2
+          }));
+        }
+      }
+    }
+
+    function reset() {
+      hEdge = Array.from({ length: D }, () => Array(N).fill(0));
+      vEdge = Array.from({ length: N }, () => Array(D).fill(0));
+      owner = Array.from({ length: N }, () => Array(N).fill(0));
+      score[1] = 0;
+      score[2] = 0;
+      claimed = 0;
+      cur = 1;
+      over = false;
+
+      for (let r = 0; r < D; r++) for (let c = 0; c < N; c++) hLine[r][c].setAttribute('class', 'dline');
+      for (let r = 0; r < N; r++) for (let c = 0; c < D; c++) vLine[r][c].setAttribute('class', 'dline');
+      for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+        boxEls[r][c].setAttribute('class', 'dbox');
+        boxTxt[r][c].setAttribute('class', 'dbox-txt');
+        boxTxt[r][c].textContent = '';
+      }
+      updateStatus(false);
+    }
+
+    function boxComplete(r, c) {
+      return hEdge[r][c] && hEdge[r + 1][c] && vEdge[r][c] && vEdge[r][c + 1];
+    }
+
+    function play(type, r, c) {
+      if (over) return;
+
+      if (type === 'h') {
+        if (hEdge[r][c]) return;
+        hEdge[r][c] = cur;
+        hLine[r][c].classList.add('p' + cur);
+      } else {
+        if (vEdge[r][c]) return;
+        vEdge[r][c] = cur;
+        vLine[r][c].classList.add('p' + cur);
+      }
+
+      const candidates = [];
+      if (type === 'h') {
+        if (r - 1 >= 0) candidates.push([r - 1, c]);
+        if (r < N) candidates.push([r, c]);
+      } else {
+        if (c - 1 >= 0) candidates.push([r, c - 1]);
+        if (c < N) candidates.push([r, c]);
+      }
+
+      let scored = false;
+      for (const [br, bc] of candidates) {
+        if (!owner[br][bc] && boxComplete(br, bc)) {
+          owner[br][bc] = cur;
+          score[cur]++;
+          claimed++;
+          scored = true;
+          boxEls[br][bc].classList.add('p' + cur);
+          boxTxt[br][bc].textContent = cur;
+          boxTxt[br][bc].classList.add('p' + cur);
+        }
+      }
+
+      if (claimed === N * N) {
+        over = true;
+        if (score[1] > score[2]) {
+          api.win(1);
+          api.setStatus(`${nameHTML(1)} wins ${score[1]} – ${score[2]}! 🎉`);
+        } else if (score[2] > score[1]) {
+          api.win(2);
+          api.setStatus(`${nameHTML(2)} wins ${score[2]} – ${score[1]}! 🎉`);
+        } else {
+          api.setStatus(`It's a draw ${score[1]} – ${score[2]}! 🤝`);
+        }
+        return;
+      }
+
+      if (!scored) cur = 3 - cur;
+      updateStatus(scored);
+    }
+
+    function updateStatus(scored) {
+      api.setStatus(
+        `${nameHTML(1)} <b>${score[1]}</b> — <b>${score[2]}</b> ${nameHTML(2)}` +
+        ` &nbsp;·&nbsp; ${nameHTML(cur)}'s turn${scored ? ' <b>(extra turn!)</b>' : ''}`
+      );
+    }
+
+    api.onReset(reset);
+    reset();
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------
+   4. MEMORY MATCH
+   --------------------------------------------------------- */
+GAMES.memory = {
+  name: 'Memory Match',
+  icon: '🧠',
+  tag: 'Reflex',
+  desc: 'Flip two cards. Find a pair to score and keep your turn going.',
+  mount(root, api) {
+    const SYMBOLS = ['🍎','🍌','🍇','🍒','🍉','🥝','🍑','🍍'];
+    let deck, flipped, matched, pairs, cur, lock, over;
+    const grid = h('div', { class: 'mem-grid' });
+    const cardEls = [];
+
+    for (let i = 0; i < 16; i++) {
+      const back = h('div', { class: 'mem-face mem-back', text: '?' });
+      const front = h('div', { class: 'mem-face mem-front' });
+      const inner = h('div', { class: 'mem-inner' }, back, front);
+      const card = h('button', { class: 'mem-card', onclick: () => flip(i) }, inner);
+      cardEls.push({ card, front });
+      grid.append(card);
+    }
+    root.append(grid);
+    root.append(h('div', { class: 'hint', text: 'Find a matching pair and you go again.' }));
+
+    function reset() {
+      deck = [...SYMBOLS, ...SYMBOLS].sort(() => Math.random() - 0.5);
+      flipped = [];
+      matched = new Set();
+      pairs = { 1: 0, 2: 0 };
+      cur = 1;
+      lock = false;
+      over = false;
+
+      cardEls.forEach(({ card, front }, i) => {
+        card.className = 'mem-card';
+        front.textContent = deck[i];
+      });
+      updateStatus();
+    }
+
+    function flip(i) {
+      if (over || lock) return;
+      if (matched.has(i) || flipped.includes(i)) return;
+
+      flipped.push(i);
+      cardEls[i].card.classList.add('flipped');
+
+      if (flipped.length < 2) {
+        api.setStatus(`${nameHTML(cur)} — pick a second card`);
+        return;
+      }
+
+      const [a, b] = flipped;
+      lock = true;
+
+      if (deck[a] === deck[b]) {
+        setTimeout(() => {
+          matched.add(a);
+          matched.add(b);
+          cardEls[a].card.classList.add('matched');
+          cardEls[b].card.classList.add('matched');
+          pairs[cur]++;
+          flipped = [];
+          lock = false;
+
+          if (matched.size === 16) {
+            over = true;
+            if (pairs[1] > pairs[2]) {
+              api.win(1);
+              api.setStatus(`${nameHTML(1)} wins ${pairs[1]} – ${pairs[2]}! 🎉`);
+            } else if (pairs[2] > pairs[1]) {
+              api.win(2);
+              api.setStatus(`${nameHTML(2)} wins ${pairs[2]} – ${pairs[1]}! 🎉`);
+            } else {
+              api.setStatus(`It's a draw ${pairs[1]} – ${pairs[2]}! 🤝`);
+            }
+            return;
+          }
+          updateStatus('Match! Go again.');
+        }, 380);
+      } else {
+        setTimeout(() => {
+          cardEls[a].card.classList.remove('flipped');
+          cardEls[b].card.classList.remove('flipped');
+          flipped = [];
+          lock = false;
+          cur = 3 - cur;
+          updateStatus();
+        }, 850);
+      }
+    }
+
+    function updateStatus(note) {
+      api.setStatus(
+        `${nameHTML(1)} <b>${pairs[1]}</b> — <b>${pairs[2]}</b> ${nameHTML(2)}` +
+        ` &nbsp;·&nbsp; ${nameHTML(cur)}'s turn` + (note ? ` <b>${note}</b>` : '')
+      );
+    }
+
+    api.onReset(reset);
+    reset();
+    return null;
+  }
+};
+
+/* ---------------------------------------------------------
+   5. NIM
+   --------------------------------------------------------- */
+GAMES.nim = {
+  name: 'Nim',
+  icon: '🪙',
+  tag: 'Brain Teaser',
+  desc: 'Take any number of tokens from one pile. Whoever takes the last token wins.',
+  mount(root, api) {
+    let piles, cur, over;
+    const wrap = h('div', { class: 'nim' });
+    root.append(wrap);
+    root.append(h('div', { class: 'hint', text: 'Click a token to remove it and every token to its right.' }));
+
+    function reset() {
+      piles = [3, 5, 7];
+      cur = 1;
+      over = false;
+      render();
+      api.setStatus(`${nameHTML(cur)} starts`);
+    }
+
+    function render() {
+      wrap.innerHTML = '';
+      piles.forEach((n, pi) => {
+        const tokens = h('div', { class: 'nim-tokens' });
+        for (let i = 0; i < n; i++) {
+          tokens.append(h('button', {
+            class: 'nim-token',
+            title: `Take ${n - i} token${n - i > 1 ? 's' : ''}`,
+            onclick: () => take(pi, i)
+          }));
+        }
+        if (n === 0) tokens.append(h('span', { class: 'nim-empty', text: '— empty —' }));
+
+        wrap.append(h('div', { class: 'nim-row' },
+          h('div', { class: 'nim-label', text: `Pile ${pi + 1}` }),
+          tokens
+        ));
+      });
+    }
+
+    function take(pi, i) {
+      if (over) return;
+      const removed = piles[pi] - i;
+      if (removed <= 0) return;
+
+      piles[pi] = i;
+
+      if (piles.every(n => n === 0)) {
+        over = true;
+        render();
+        api.win(cur);
+        api.setStatus(`${nameHTML(cur)} takes the last token and wins! 🎉`);
+        return;
+      }
+      cur = 3 - cur;
+      render();
+      api.setStatus(`${nameHTML(cur)}'s turn`);
+    }
+
+    api.onReset(reset);
+    reset();
+    return null;
+  }
+};
+
+/* =========================================================
+   ROUTING / SHELL
+   ========================================================= */
+function showLobby() {
+  if (state.cleanup) { state.cleanup(); state.cleanup = null; }
+  state.currentGame = null;
+  app.innerHTML = '';
+
+  const grid = h('div', { class: 'lobby-grid' });
+  for (const [id, g] of Object.entries(GAMES)) {
+    grid.append(h('button', { class: 'game-card', onclick: () => startGame(id) },
+      h('div', { class: 'game-icon', text: g.icon }),
+      h('div', { class: 'game-name', text: g.name }),
+      h('div', { class: 'game-desc', text: g.desc }),
+      h('div', { class: 'game-tag', text: g.tag })
+    ));
+  }
+
+  app.append(h('div', { class: 'lobby' },
+    h('h2', { class: 'lobby-title', text: 'Choose a game' }),
+    h('p', { class: 'lobby-sub', text: 'Two players, one device. Take turns and rack up points!' }),
+    grid
+  ));
+}
+
+function startGame(id) {
+  if (state.cleanup) { state.cleanup(); state.cleanup = null; }
+  const game = GAMES[id];
+  if (!game) return;
+
+  state.currentGame = id;
+  app.innerHTML = '';
+
+  const statusEl = h('div', { class: 'status', text: '' });
+  const resetBtn = h('button', { class: 'btn ghost', text: '↻ New Round' });
+  const bar = h('div', { class: 'game-bar' },
+    h('button', { class: 'btn ghost', onclick: showLobby }, '← Lobby'),
+    statusEl,
+    resetBtn
+  );
+  const board = h('div', { class: 'board' });
+
+  app.append(h('div', { class: 'game-shell' }, bar, board));
+
+  const api = {
+    setStatus(html) { statusEl.innerHTML = html; },
+    win(player) { state.scores[player]++; updateScoreboard(); },
+    onReset(fn) { resetBtn.onclick = fn; }
+  };
+
+  const cleanup = game.mount(board, api);
+  state.cleanup = typeof cleanup === 'function' ? cleanup : null;
+}
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+updateScoreboard();
+showLobby();
+</script>
+</body>
+</html>
